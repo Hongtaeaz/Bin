@@ -1,0 +1,105 @@
+#include <Servo.h> // เรียกใช้ไลบรารี Servo เพื่อควบคุมเซอร์โวมอเตอร์
+
+// Ultrasonic Sensor สำหรับเช็คระยะวัตถุ
+const int trigPin1 = 9; // ขา Trig ของ Ultrasonic Sensor ตัวแรก เชื่อมต่อกับขา 9 ของ Arduino
+const int echoPin1 = 10; // ขา Echo ของ Ultrasonic Sensor ตัวแรก เชื่อมต่อกับขา 10 ของ Arduino
+
+// Ultrasonic Sensor สำหรับเช็คระดับขยะ
+const int trigPin2 = 11; // ขา Trig ของ Ultrasonic Sensor ตัวที่สอง เชื่อมต่อกับขา 11 ของ Arduino
+const int echoPin2 = 12; // ขา Echo ของ Ultrasonic Sensor ตัวที่สอง เชื่อมต่อกับขา 12 ของ Arduino
+
+// Servo motor
+Servo myServo; // สร้างตัวแปร Servo สำหรับควบคุมเซอร์โวมอเตอร์
+
+// กำหนดขา LED (active low)
+const int led50Pin = 5; // ขา LED แสดงสถานะเมื่อขยะถึง 50% เชื่อมต่อกับขา 5 ของ Arduino
+const int led80Pin = 6; // ขา LED แสดงสถานะเมื่อขยะถึง 80% เชื่อมต่อกับขา 6 ของ Arduino
+
+// ระยะลึกสุดของถังขยะ (30 cm)
+const int maxDistance = 30; // กำหนดระยะลึกสุดของถังขยะเป็น 30 ซม.
+
+void setup() {
+  // ตั้งค่า ultrasonic sensor สำหรับเช็ควัตถุ
+  pinMode(trigPin1, OUTPUT); // กำหนดขา trigPin1 (ขา 9) เป็น output สำหรับส่งสัญญาณ Ultrasonic Sensor ตัวแรก
+  pinMode(echoPin1, INPUT); // กำหนดขา echoPin1 (ขา 10) เป็น input สำหรับรับสัญญาณ Ultrasonic Sensor ตัวแรก
+
+  // ตั้งค่า ultrasonic sensor สำหรับเช็คระดับขยะ
+  pinMode(trigPin2, OUTPUT); // กำหนดขา trigPin2 (ขา 11) เป็น output สำหรับส่งสัญญาณ Ultrasonic Sensor ตัวที่สอง
+  pinMode(echoPin2, INPUT); // กำหนดขา echoPin2 (ขา 12) เป็น input สำหรับรับสัญญาณ Ultrasonic Sensor ตัวที่สอง
+
+  // ตั้งค่า LED ให้เป็น Output
+  pinMode(led50Pin, OUTPUT); // กำหนดขา led50Pin (ขา 5) เป็น output สำหรับควบคุม LED 50%
+  pinMode(led80Pin, OUTPUT); // กำหนดขา led80Pin (ขา 6) เป็น output สำหรับควบคุม LED 80%
+
+  // ตั้งค่า LED ให้เป็น HIGH (active low)
+  digitalWrite(led50Pin, HIGH); // ตั้งค่า LED 50% ให้เป็น HIGH (หมายถึงปิดหลอดไฟใน active low)
+  digitalWrite(led80Pin, HIGH); // ตั้งค่า LED 80% ให้เป็น HIGH (หมายถึงปิดหลอดไฟใน active low)
+
+  // ตั้งค่า Servo
+  myServo.attach(3); // ต่อสายสัญญาณของเซอร์โวมอเตอร์ที่ขา 3 ของ Arduino
+  myServo.write(0);  // เริ่มต้นให้เซอร์โวมอเตอร์หมุนไปที่ 0 องศา
+
+  Serial.begin(9600); // เริ่มต้นการใช้งาน Serial Monitor สำหรับแสดงผลลัพธ์บนหน้าจอคอมพิวเตอร์
+}
+
+void loop() {
+  // วัดระยะทางจาก Ultrasonic Sensor ตัวแรก
+  long distance1 = getDistance(trigPin1, echoPin1); // เรียกใช้ฟังก์ชัน getDistance() เพื่อตรวจวัดระยะทางจาก Ultrasonic Sensor ตัวแรก
+
+  // วัดระดับขยะจาก Ultrasonic Sensor ตัวที่สอง
+  long distance2 = getDistance(trigPin2, echoPin2); // เรียกใช้ฟังก์ชัน getDistance() เพื่อตรวจวัดระดับขยะจาก Ultrasonic Sensor ตัวที่สอง
+
+  // แสดงผลระยะใน Serial Monitor
+  Serial.print("Distance1: "); // แสดงข้อความ "Distance1: " ใน Serial Monitor
+  Serial.print(distance1); // แสดงค่าระยะที่วัดได้จาก Ultrasonic Sensor ตัวแรกในหน่วยเซนติเมตร
+  Serial.print(" cm, Trash Level Distance2: "); // แสดงข้อความ "Trash Level Distance2: " ใน Serial Monitor
+  Serial.print(distance2); // แสดงค่าระยะที่วัดได้จาก Ultrasonic Sensor ตัวที่สองในหน่วยเซนติเมตร
+  Serial.println(" cm"); // ขึ้นบรรทัดใหม่ใน Serial Monitor
+
+  // เช็ควัตถุถ้ามีระยะน้อยกว่า 30 ซม.
+  if (distance1 <= 30) { // ตรวจสอบว่าระยะที่วัดได้จาก Ultrasonic Sensor ตัวแรกน้อยกว่าหรือเท่ากับ 30 ซม.
+    myServo.write(90);  // หมุนเซอร์โวมอเตอร์ไปที่ 90 องศา
+    delay(5000);        // รอ 5 วินาที (5000 มิลลิวินาที)
+    myServo.write(0);   // หมุนเซอร์โวมอเตอร์กลับไปที่ 0 องศา
+    delay(1000);        // รอ 1 วินาที (1000 มิลลิวินาที)
+  }
+
+  // คำนวณระดับขยะในรูปแบบ % จากระยะทางที่เหลือ
+  int trashLevel = map(distance2, 0, maxDistance, 100, 0); // ใช้ฟังก์ชัน map() แปลงค่าระยะทางจาก 0 ถึง 30 ซม. เป็นเปอร์เซ็นต์ (100 คือเต็ม)
+
+  // แสดงผลใน Serial Monitor
+  Serial.print("Trash Level: "); // แสดงข้อความ "Trash Level: " ใน Serial Monitor
+  Serial.print(trashLevel); // แสดงระดับขยะในรูปแบบเปอร์เซ็นต์
+  Serial.println(" %"); // ขึ้นบรรทัดใหม่ใน Serial Monitor
+
+  // ควบคุม LED สำหรับแสดงสถานะขยะ 50% และ 80%
+  if (trashLevel >= 80) { // ถ้าระดับขยะเกินหรือเท่ากับ 80%
+    digitalWrite(led80Pin, LOW);  // เปิด LED 80% (active low หมายถึง LOW คือเปิดไฟ)
+  } else {
+    digitalWrite(led80Pin, HIGH); // ปิด LED 80% (active low หมายถึง HIGH คือปิดไฟ)
+  }
+
+  if (trashLevel >= 50) { // ถ้าระดับขยะเกินหรือเท่ากับ 50%
+    digitalWrite(led50Pin, LOW);  // เปิด LED 50% (active low หมายถึง LOW คือเปิดไฟ)
+  } else {
+    digitalWrite(led50Pin, HIGH); // ปิด LED 50% (active low หมายถึง HIGH คือปิดไฟ)
+  }
+
+  delay(200); // รอ 200 มิลลิวินาทีก่อนทำงานรอบต่อไป
+}
+
+// ฟังก์ชันสำหรับวัดระยะทางด้วย Ultrasonic Sensor
+long getDistance(int trigPin, int echoPin) {
+  long duration, distance; // ตัวแปรเก็บระยะเวลาและระยะทาง
+
+  digitalWrite(trigPin, LOW); // เริ่มต้นส่งสัญญาณจาก Trig โดยให้เป็น LOW ก่อน
+  delayMicroseconds(2); // รอ 2 ไมโครวินาที
+  digitalWrite(trigPin, HIGH); // ส่งสัญญาณ HIGH เป็นเวลา 10 ไมโครวินาที
+  delayMicroseconds(10); // รอ 10 ไมโครวินาที
+  digitalWrite(trigPin, LOW); // ปิดสัญญาณ (กลับไปเป็น LOW)
+
+  duration = pulseIn(echoPin, HIGH); // อ่านระยะเวลาที่ Echo Pin เป็น HIGH
+  distance = duration * 0.034 / 2; // คำนวณระยะทางจากระยะเวลา (0.034 เป็นค่าคงที่สำหรับการคำนวณระยะทางในอากาศ)
+
+  return distance; // คืนค่าระยะทางที่คำนวณได้
+}
